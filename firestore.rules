@@ -1,0 +1,142 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidTask(data) {
+      return data.text is string && data.text.size() > 0 && data.text.size() <= 1000 &&
+             data.completed is bool &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 5000)) &&
+             (!('isExpanded' in data) || data.isExpanded is bool) &&
+             (!('subtasks' in data) || data.subtasks is list) &&
+             data.userId == request.auth.uid &&
+             data.createdAt is number;
+    }
+    
+    function isValidSettings(data) {
+      return data.pomodoro is number && data.pomodoro > 0 && data.pomodoro <= 120 &&
+             data.shortBreak is number && data.shortBreak > 0 && data.shortBreak <= 60 &&
+             data.longBreak is number && data.longBreak > 0 && data.longBreak <= 120 &&
+             data.longBreakInterval is number && data.longBreakInterval > 0 && data.longBreakInterval <= 20 &&
+             data.autoStartBreaks is bool &&
+             data.autoStartPomodoros is bool &&
+             data.alarmSound is string && data.alarmSound.size() <= 50 &&
+             data.background is string && data.background.size() <= 50 &&
+             data.uiSounds is bool &&
+             data.userId == request.auth.uid &&
+             data.updatedAt is number;
+    }
+
+    function isValidSession(data) {
+      return data.duration is number && data.duration > 0 &&
+             data.completedAt is number &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidUserProfile(data) {
+      return data.email is string && data.email.size() <= 100 &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+             (!('isOnline' in data) || data.isOnline is bool) &&
+             (!('isFocusing' in data) || data.isFocusing is bool) &&
+             (!('status' in data) || (data.status is string && data.status.size() <= 50)) &&
+             (!('timeRemaining' in data) || data.timeRemaining is number) &&
+             (!('totalTime' in data) || data.totalTime is number) &&
+             (!('currentTask' in data) || (data.currentTask is string && data.currentTask.size() <= 100)) &&
+             (!('lastActive' in data) || data.lastActive is number);
+    }
+
+    function isValidFriendship(data) {
+      return data.user1 is string && data.user2 is string &&
+             data.status in ['pending', 'accepted'] &&
+             data.requester is string &&
+             (!('createdAt' in data) || data.createdAt is number) &&
+             (request.auth.uid == data.user1 || request.auth.uid == data.user2);
+    }
+
+    function isValidChat(data) {
+      return data.participants is list && data.participants.size() == 2 &&
+             request.auth.uid in data.participants &&
+             data.updatedAt is number &&
+             (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 1000));
+    }
+
+    function isValidMessage(data) {
+      return data.chatId is string &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 1000 &&
+             data.createdAt is number;
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && hasRequiredFields(['text', 'completed', 'userId', 'createdAt']) && isValidTask(request.resource.data) && uidUnchanged();
+      allow update: if isDocOwner() && isValidTask(request.resource.data) && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isDocOwner();
+    }
+    
+    match /settings/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && hasRequiredFields(['pomodoro', 'shortBreak', 'longBreak', 'longBreakInterval', 'autoStartBreaks', 'autoStartPomodoros', 'alarmSound', 'background', 'uiSounds', 'userId', 'updatedAt']) && isValidSettings(request.resource.data) && uidUnchanged();
+      allow update: if isOwner(userId) && isValidSettings(request.resource.data) && uidNotModified();
+      allow delete: if isOwner(userId);
+    }
+    
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated(); // Allow friends to read sessions
+      allow create: if isAuthenticated() && hasRequiredFields(['userId', 'duration', 'completedAt']) && isValidSession(request.resource.data) && uidUnchanged();
+      allow update: if isDocOwner() && isValidSession(request.resource.data) && uidNotModified() && request.resource.data.completedAt == resource.data.completedAt;
+      allow delete: if isDocOwner();
+    }
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && hasRequiredFields(['email', 'displayName']) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    match /friendships/{friendshipId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.user1 || request.auth.uid == resource.data.user2);
+      allow create: if isAuthenticated() && hasRequiredFields(['user1', 'user2', 'status', 'requester']) && isValidFriendship(request.resource.data) && request.resource.data.requester == request.auth.uid && request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() && isValidFriendship(request.resource.data) && (request.auth.uid == resource.data.user1 || request.auth.uid == resource.data.user2) && request.resource.data.requester == resource.data.requester;
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.user1 || request.auth.uid == resource.data.user2);
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && hasRequiredFields(['participants', 'updatedAt']) && isValidChat(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants && isValidChat(request.resource.data);
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated() && hasRequiredFields(['chatId', 'senderId', 'text', 'createdAt']) && isValidMessage(request.resource.data) && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
+    }
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "A task in the pomodoro timer",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The task description"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "subtasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            },
+            "required": ["id", "text", "completed"]
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "isExpanded": {
+          "type": "boolean"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "number"
+        }
+      },
+      "required": ["text", "completed", "userId", "createdAt"]
+    },
+    "UserSettings": {
+      "title": "User Settings",
+      "description": "User preferences for the timer",
+      "type": "object",
+      "properties": {
+        "pomodoro": { "type": "number" },
+        "shortBreak": { "type": "number" },
+        "longBreak": { "type": "number" },
+        "longBreakInterval": { "type": "number" },
+        "autoStartBreaks": { "type": "boolean" },
+        "autoStartPomodoros": { "type": "boolean" },
+        "alarmSound": { "type": "string" },
+        "background": { "type": "string" },
+        "uiSounds": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["pomodoro", "shortBreak", "longBreak", "longBreakInterval", "autoStartBreaks", "autoStartPomodoros", "alarmSound", "background", "uiSounds", "userId", "updatedAt"]
+    },
+    "StudySession": {
+      "title": "Study Session",
+      "description": "A completed focus session",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "duration": { "type": "number", "description": "Duration in seconds" },
+        "completedAt": { "type": "number", "description": "Timestamp of completion" }
+      },
+      "required": ["userId", "duration", "completedAt"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Public user profile for friends feature",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "isFocusing": { "type": "boolean" },
+        "status": { "type": "string" },
+        "timeRemaining": { "type": "number" },
+        "totalTime": { "type": "number" },
+        "currentTask": { "type": "string" },
+        "lastActive": { "type": "number" }
+      },
+      "required": ["email", "displayName"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "Friendship connection between two users",
+      "type": "object",
+      "properties": {
+        "user1": { "type": "string" },
+        "user2": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted"] },
+        "requester": { "type": "string" }
+      },
+      "required": ["user1", "user2", "status", "requester"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A chat room between users",
+      "type": "object",
+      "properties": {
+        "participants": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "updatedAt": { "type": "number" },
+        "lastMessage": { "type": "string" }
+      },
+      "required": ["participants", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message in a chat room",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["chatId", "senderId", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Tasks created by users"
+    },
+    "/settings/{userId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "User settings"
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/StudySession" },
+      "description": "Completed study sessions"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles"
+    },
+    "/friendships/{friendshipId}": {
+      "schema": { "$ref": "#/entities/Friendship" },
+      "description": "Friend connections"
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Chat rooms"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages in a chat room"
+    }
+  }
+}

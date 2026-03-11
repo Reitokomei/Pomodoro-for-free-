@@ -1,0 +1,5 @@
+{
+  "name": "FocusFlow Pomodoro",
+  "description": "A fully featured Pomodoro timer with task management and customizable intervals.",
+  "requestFramePermissions": []
+}
